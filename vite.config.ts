@@ -15,17 +15,22 @@ const KBV_TARGET = "http://127.0.0.1:8081";
 const kbvPreviewProxy = () => {
   const proxy = httpProxy.createProxyServer({
     target: KBV_TARGET,
-    ws: true,
+    ws: false,
     changeOrigin: true,
   });
-  proxy.on("error", () => {});
+  proxy.on("error", (_err, _req, res: any) => {
+    try {
+      res?.writeHead?.(502, { "content-type": "text/plain" });
+      res?.end?.("Upstream app not ready");
+    } catch {
+      /* ignore */
+    }
+  });
   return {
     name: "kbv-preview-proxy",
     apply: "serve" as const,
     configureServer(server: any) {
-      server.httpServer?.on("upgrade", (req: any, socket: any, head: any) => {
-        proxy.ws(req, socket, head);
-      });
+      // Note: websocket upgrades are intentionally NOT proxied (HMR only).
       server.middlewares.use((req: any, res: any) => {
         proxy.web(req, res);
       });
